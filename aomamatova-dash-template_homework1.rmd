@@ -1,0 +1,79 @@
+---
+title: "Проблемы в авиаперевозках и пути их решения"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr)
+library(ggplot2)
+library(R3PO)
+library(readr)
+library(lubridate)
+library(stringr)
+
+
+airline = get_hw1_data(df_name = "airline")
+airport = get_hw1_data(df_name = "airport")
+lounge = get_hw1_data(df_name = "lounge")
+seat = get_hw1_data(df_name = "seat")
+```
+
+Column {data-width=550}
+-----------------------------------------------------------------------
+
+### Количество отзывов про авиалинии по дням недели
+
+
+```{r message = FALSE, warning=FALSE, echo = F}
+airline = mutate(airline, Weekdays = wday(airline$date, label = TRUE))
+  selectedDay = "Mon"
+  selectedDay1 = "Sat"
+ggplot() + geom_bar(aes(x = wday(airline$date, label = TRUE)), fill="pink") + theme_light() +
+  xlab("Дни недели") +
+  ylab("Количество отзывов") +
+  ggtitle("Количество отзывов про авиалинии по дням недели") + 
+  geom_bar(aes(x = selectedDay), col="red") +
+  geom_bar(aes(x = selectedDay1), col="green")
+```
+
+Column {data-width=450}
+-----------------------------------------------------------------------
+
+### Количество упоминаний сложных перелетов
+```{r message = FALSE, warning=FALSE, echo = F}
+seat$content = str_to_lower(seat$content)
+content_has_legroom=str_detect(seat$content, "legroom")
+
+valueBox(sum(content_has_legroom))
+```
+
+### Зависимость оценки удобства пространства для ног\nот упоминания сложных перелетов
+
+```{r message = FALSE, warning=FALSE, echo = F}
+
+seat$content = str_to_lower(seat$content)
+content_has_legroom=str_detect(seat$content, "legroom")
+seat$content_has_legroom=factor(content_has_legroom==1,label=c("Да","Нет"))
+
+seat = seat %>% group_by(content_has_legroom)
+content = summarise(seat, mean_rating = mean(seat_legroom_rating), .groups='drop')
+
+
+ggplot(data=content) + geom_bar(aes(x=content_has_legroom, y=mean_rating), stat="identity", fill = "darkblue", color = "white", alpha = 0.6)  + theme_light() +
+  xlab("Упоминание сложных перелетов в комментарии") +
+  ylab("Оценка удобства пространства для ног") +
+ggtitle("Зависимость оценки удобства пространства для ног\nот упоминания сложных перелетов")
+```
+
+### Средний рейтинг лаундж-зоны для аэропорта
+
+```{r message = FALSE, warning=FALSE, echo = F}
+lounge$new_overall_rating <- rowSums(lounge[ c('comfort_rating', 'cleanliness_rating', 'bar_beverages_rating', 'catering_rating', 'washrooms_rating', 'wifi_connectivity_rating', 'staff_service_rating')], na.rm=TRUE)
+lounge = lounge %>% mutate(mean_lounge_rating = new_overall_rating / 7)
+
+valueBox(round(mean(lounge$new_overall_rating),3))
+```
